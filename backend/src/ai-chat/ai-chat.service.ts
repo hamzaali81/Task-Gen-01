@@ -19,7 +19,7 @@ import { GeminiPromptBuilder } from './helpers/gemini-prompt.builder';
 /**
  * Budget proposal item structure returned by Gemini
  */
-interface BudgetProposalItem {
+export interface BudgetProposalItem {
   category: string;
   description: string;
   amount: number;
