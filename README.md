@@ -1,368 +1,274 @@
 Loom: https://www.loom.com/share/0498cddaca7e4207b0dc03b985c70f78
 # Event Budgeting Platform
 
-A multi-tenant event budgeting platform with AI-powered budget proposal generation using Google's Gemini API. Built with NestJS, Prisma, MySQL, React, and TypeScript.
+An AI-powered event budgeting platform that helps users create and manage budget proposals for events using Google Gemini AI.
 
-## 🎯 Features
+## 🚀 Features
 
-### Core Features
-- **Multi-tenant Architecture**: Workspace-based isolation with `x-workspace-id` header validation
-- **Event Management**: Full CRUD operations for events with title, date, and currency
-- **Budget Items**: Complete budget item management per event
-- **AI Budget Assistant**: Gemini-powered budget proposal generation with approval workflow
-- **Real-time Updates**: Socket.IO integration for live budget updates across clients
-- **JWT Authentication**: Secure authentication with workspace access control
+- **AI-Powered Budget Generation**: Generate budget proposals using Google Gemini AI
+- **Event Management**: Create and manage multiple events with different currencies
+- **Budget Item Tracking**: Track budget items by category (Food, Venue, Entertainment, etc.)
+- **Proposal Workflow**: Review, approve, or reject AI-generated budget proposals
+- **Multi-Workspace Support**: Organize events across different workspaces
+- **Real-time Updates**: WebSocket support for live budget updates
+- **Authentication & Authorization**: JWT-based authentication with role-based access
 
-### AI Assistant Workflow
-1. User sends natural language request (e.g., "Create budget for corporate event with 100 guests")
-2. Gemini generates detailed budget proposal
-3. Proposal saved as "pending" (not written to database)
-4. User reviews proposal with approve/reject options
-5. On approval: budget items written to database + real-time notification
-6. Currency validation: All items must match event currency
+## 🛠️ Tech Stack
 
-## 🏗 Architecture
+### Backend
+- **NestJS**: Progressive Node.js framework
+- **Prisma**: Next-generation ORM
+- **SQLite**: Lightweight database (for development)
+- **Google Gemini AI**: AI-powered budget generation
+- **WebSocket**: Real-time communication
+- **JWT**: Authentication
+- **Swagger**: API documentation
 
-```
-Frontend (React + TypeScript)
-    ↓ HTTP/REST + WebSocket
-Backend (NestJS + Prisma)
-    ↓ Prisma ORM
-Database (MySQL)
-```
+### Frontend
+- **React**: UI library
+- **TypeScript**: Type-safe JavaScript
+- **Vite**: Fast build tool
+- **Axios**: HTTP client
 
 ## 📋 Prerequisites
 
-- Node.js 18+ 
-- MySQL 8.0+
-- Google Gemini API Key ([Get one here](https://makersuite.google.com/app/apikey))
-- npm or yarn
+- Node.js 18+ and npm
+- Git
 
-## 🚀 Quick Start
+## 🔧 Installation
 
-### 1. Clone and Install
+### 1. Clone the repository
 
 ```bash
-# Backend
-cd backend
-npm install
-
-# Frontend
-cd frontend
-npm install
+git clone https://github.com/hamzaali81/Task-Gen-01.git
+cd Task-Gen-01
 ```
 
-### 2. Configure Backend
-
-Create `backend/.env`:
-
-```env
-DATABASE_URL="mysql://root:password@localhost:3306/event_budgeting"
-JWT_SECRET=your-secret-key-change-in-production
-JWT_EXPIRATION=24h
-GEMINI_API_KEY=your-gemini-api-key-here
-PORT=3000
-NODE_ENV=development
-CORS_ORIGIN=http://localhost:5173
-```
-
-### 3. Setup Database
+### 2. Backend Setup
 
 ```bash
 cd backend
+
+# Install dependencies
+npm install
+
+# Configure environment variables
+cp .env.example .env
+# Edit .env and add your configuration:
+# - DATABASE_URL (SQLite is pre-configured)
+# - JWT_SECRET (change in production)
+# - GEMINI_API_KEY (get from Google AI Studio)
 
 # Generate Prisma Client
-npm run prisma:generate
+npx prisma generate
 
-# Push schema to database (creates tables)
-npm run prisma:push
+# Run database migrations
+npx prisma migrate dev --name init
 
-# Or run migrations
-npm run prisma:migrate
+# Start the development server
+npm run start:dev
 ```
 
-### 4. Start Services
+The backend will be running at `http://localhost:3000`
+
+API Documentation (Swagger): `http://localhost:3000/api/docs`
+
+### 3. Frontend Setup
 
 ```bash
-# Terminal 1 - Backend
-cd backend
-npm run start:dev
-
-# Terminal 2 - Frontend
 cd frontend
+
+# Install dependencies
+npm install
+
+# Configure environment variables
+cp .env.example .env
+# Edit .env if needed (default backend URL is http://localhost:3000)
+
+# Start the development server
 npm run dev
 ```
 
-### 5. Access Application
+The frontend will be running at `http://localhost:5173`
 
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:3000
-- API Documentation: http://localhost:3000/api/docs
+## 🔑 Environment Variables
 
-## 📊 Database Schema
+### Backend (.env)
+
+```env
+# Database
+DATABASE_URL="file:./dev.db"
+
+# JWT Configuration
+JWT_SECRET=your-secret-key-change-in-production
+JWT_EXPIRATION=24h
+
+# Google Gemini API
+GEMINI_API_KEY=your-gemini-api-key-here
+
+# Server
+PORT=3000
+NODE_ENV=development
+
+# CORS
+CORS_ORIGIN=http://localhost:5173
+```
+
+### Getting Google Gemini API Key
+
+1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Sign in with your Google account
+3. Create a new API key
+4. Copy and paste it into your `.env` file
+
+## 📚 API Endpoints
+
+### Authentication
+- `POST /auth/register` - Register a new user
+- `POST /auth/login` - Login user
+- `GET /auth/profile` - Get current user profile
+
+### Events
+- `GET /events` - List all events
+- `POST /events` - Create a new event
+- `GET /events/:id` - Get event details
+- `PATCH /events/:id` - Update event
+- `DELETE /events/:id` - Delete event
+
+### Budget Items
+- `GET /events/:eventId/budget-items` - List budget items for an event
+- `POST /events/:eventId/budget-items` - Create budget item
+- `PATCH /events/:eventId/budget-items/:id` - Update budget item
+- `DELETE /events/:eventId/budget-items/:id` - Delete budget item
+
+### AI Chat
+- `POST /events/:eventId/ai-chat` - Generate budget proposal with AI
+- `PATCH /events/:eventId/ai-chat/proposals/:proposalId/approve` - Approve proposal
+- `PATCH /events/:eventId/ai-chat/proposals/:proposalId/reject` - Reject proposal
+
+## 🗄️ Database Schema
 
 ```prisma
 model User {
-  id         String          @id @default(uuid())
-  email      String          @unique
-  password   String
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  firstName String?
+  lastName  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   workspaces WorkspaceUser[]
 }
 
 model Workspace {
-  id     String          @id @default(uuid())
-  name   String
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   users  WorkspaceUser[]
   events Event[]
 }
 
 model Event {
-  id          String           @id @default(uuid())
+  id          String   @id @default(uuid())
   title       String
   date        DateTime
   currency    String
   workspaceId String
-  budgetItems BudgetItem[]
-  proposals   BudgetProposal[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  budgetItems   BudgetItem[]
+  proposals     BudgetProposal[]
 }
 
 model BudgetItem {
-  id          String @id @default(uuid())
+  id          String   @id @default(uuid())
   eventId     String
   category    String
   description String
   amount      Float
   currency    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model BudgetProposal {
-  id            String @id @default(uuid())
-  eventId       String
-  userMessage   String
-  aiResponse    String
-  proposedItems String  // JSON array
-  status        String  // pending, approved, rejected
+  id              String   @id @default(uuid())
+  eventId         String
+  userMessage     String
+  aiResponse      String
+  proposedItems   String
+  status          String   @default("pending")
+  rejectionReason String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 ```
 
-## 🔐 API Endpoints
-
-### Authentication
-- `POST /auth/register` - Register new user (creates default workspace)
-- `POST /auth/login` - Login (returns JWT + workspaces)
-- `GET /auth/profile` - Get user profile
-
-### Events (Requires `x-workspace-id` header)
-- `GET /events` - List all events in workspace
-- `GET /events/:id` - Get event with budget summary
-- `POST /events` - Create event
-- `PATCH /events/:id` - Update event
-- `DELETE /events/:id` - Delete event
-
-### Budget Items (Requires `x-workspace-id` header)
-- `GET /events/:eventId/budget-items` - List budget items
-- `POST /events/:eventId/budget-items` - Create budget item
-- `PATCH /events/:eventId/budget-items/:id` - Update budget item
-- `DELETE /events/:eventId/budget-items/:id` - Delete budget item
-
-### AI Chat (Requires `x-workspace-id` header)
-- `POST /events/:eventId/ai-chat` - Generate budget proposal
-- `PATCH /events/:eventId/ai-chat/proposals/:id/approve` - Approve proposal
-- `PATCH /events/:eventId/ai-chat/proposals/:id/reject` - Reject proposal
-
-## 🧪 Testing the API
-
-### 1. Register User
-
-```bash
-curl -X POST http://localhost:3000/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"password123","firstName":"John"}'
-```
-
-Response includes `access_token` and `workspaces` array.
-
-### 2. Create Event
-
-```bash
-curl -X POST http://localhost:3000/events \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "x-workspace-id: YOUR_WORKSPACE_ID" \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Company Gala","date":"2026-12-31","currency":"USD"}'
-```
-
-### 3. Generate AI Proposal
-
-```bash
-curl -X POST http://localhost:3000/events/EVENT_ID/ai-chat \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "x-workspace-id: YOUR_WORKSPACE_ID" \
-  -H "Content-Type: application/json" \
-  -d '{"message":"Create budget for corporate party with 100 guests"}'
-```
-
-### 4. Approve Proposal
-
-```bash
-curl -X PATCH http://localhost:3000/events/EVENT_ID/ai-chat/proposals/PROPOSAL_ID/approve \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "x-workspace-id: YOUR_WORKSPACE_ID"
-```
-
-## 🔌 WebSocket Events
-
-### Client → Server
-- `joinWorkspace(workspaceId)` - Join workspace room
-- `leaveWorkspace(workspaceId)` - Leave workspace room
-
-### Server → Client
-- `budgetUpdated({ eventId, timestamp })` - Emitted when proposal approved
-
-```javascript
-// Frontend example
-import { io } from 'socket.io-client';
-
-const socket = io('http://localhost:3000', {
-  auth: { token: yourJwtToken }
-});
-
-socket.emit('joinWorkspace', workspaceId);
-socket.on('budgetUpdated', ({ eventId }) => {
-  // Refresh budget data
-});
-```
-
-## 🎨 Frontend Features
-
-- **TanStack Query**: Server state management with caching
-- **Zustand**: Client state (auth, workspace selection)
-- **React Router**: Protected routes
-- **Socket.IO Client**: Real-time updates
-- **Toast Notifications**: User feedback
-- **Responsive Design**: Mobile-friendly UI
-
-## 🐳 Docker Deployment
-
-```bash
-# Set Gemini API key
-export GEMINI_API_KEY=your-key-here
-
-# Start all services
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop services
-docker-compose down
-```
-
-Access at http://localhost
-
-## 📁 Project Structure
-
-```
-Task-Project/
-├── backend/
-│   ├── prisma/
-│   │   └── schema.prisma
-│   ├── src/
-│   │   ├── auth/              # JWT authentication
-│   │   ├── users/             # User management
-│   │   ├── events/            # Event CRUD
-│   │   ├── budget-items/      # Budget item management
-│   │   ├── ai-chat/           # Gemini integration
-│   │   ├── websockets/        # Socket.IO gateway
-│   │   ├── prisma/            # Prisma service
-│   │   └── common/middleware/ # Workspace middleware
-│   └── package.json
-├── frontend/
-│   ├── src/
-│   │   ├── api/               # API services
-│   │   ├── components/        # React components
-│   │   ├── pages/             # Route pages
-│   │   ├── hooks/             # Custom hooks (useSocket)
-│   │   ├── store/             # Zustand stores
-│   │   └── styles/            # CSS files
-│   └── package.json
-└── docker-compose.yml
-```
-
-## 🔒 Security Features
-
-- JWT token authentication
-- Workspace access validation via middleware
-- Password hashing with bcrypt (10 rounds)
-- CORS configuration
-- Input validation with class-validator
-- SQL injection prevention (Prisma parameterized queries)
-- WebSocket authentication
-
-## 🚨 Important Notes
-
-1. **Pending Proposal Blocking**: Only one pending proposal per event. Must approve/reject before generating new one.
-2. **Currency Validation**: AI proposals with mismatched currencies are automatically rejected.
-3. **Workspace Isolation**: All event/budget operations require valid `x-workspace-id` header.
-4. **Real-time Updates**: Clients must join workspace room via Socket.IO to receive updates.
-5. **Gemini API**: Requires valid API key. Get free key at [Google AI Studio](https://makersuite.google.com/app/apikey).
-
-## 📝 Environment Variables
-
-### Backend (.env)
-- `DATABASE_URL` - MySQL connection string
-- `JWT_SECRET` - Secret for JWT signing
-- `JWT_EXPIRATION` - Token expiration (e.g., "24h")
-- `GEMINI_API_KEY` - Google Gemini API key
-- `PORT` - Server port (default: 3000)
-- `NODE_ENV` - Environment (development/production)
-- `CORS_ORIGIN` - Allowed origins
-
-### Frontend (.env)
-- `VITE_API_URL` - Backend API URL (optional, defaults to http://localhost:3000)
-
-## 🛠 Development Commands
+## 🧪 Testing
 
 ### Backend
+
 ```bash
-npm run start:dev      # Start with watch mode
-npm run build          # Build for production
-npm run start:prod     # Start production build
-npm run prisma:studio  # Open Prisma Studio (database GUI)
-npm run prisma:migrate # Run database migrations
+cd backend
+npm test                # Run tests
+npm run test:watch     # Run tests in watch mode
+npm run test:cov       # Run tests with coverage
 ```
 
-### Frontend
-```bash
-npm run dev            # Start development server
-npm run build          # Build for production
-npm run preview        # Preview production build
-npm run lint           # Run ESLint
+## 📦 Production Deployment
+
+### Backend
+
+For production, consider using MySQL or PostgreSQL instead of SQLite:
+
+1. Update `prisma/schema.prisma`:
+```prisma
+datasource db {
+  provider = "mysql"  // or "postgresql"
+  url      = env("DATABASE_URL")
+}
 ```
 
-## 📄 License
+2. Update `.env`:
+```env
+DATABASE_URL="mysql://user:password@host:3306/database"
+```
 
-MIT
+3. Run migrations:
+```bash
+npx prisma migrate deploy
+```
+
+4. Build and start:
+```bash
+npm run build
+npm run start:prod
+```
 
 ## 🤝 Contributing
 
-This is a take-home project. For production use, consider adding:
-- Unit and E2E tests
-- Rate limiting
-- Refresh tokens
-- Advanced error handling
-- Logging and monitoring
-- CI/CD pipeline
-- Database migrations strategy
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-## 📞 Support
+## 📝 License
 
-For issues or questions, check:
-1. API Documentation: http://localhost:3000/api/docs
-2. Prisma Studio: `npm run prisma:studio`
-3. Backend logs in terminal
-4. Browser console for frontend errors
+This project is licensed under the MIT License.
+
+## 🙏 Acknowledgments
+
+- [NestJS](https://nestjs.com/)
+- [Prisma](https://www.prisma.io/)
+- [Google Gemini AI](https://ai.google.dev/)
+- [React](https://react.dev/)
+
+## 📧 Contact
+
+For any questions or support, please open an issue on GitHub.
 
 ---
 
-Built with ❤️ using NestJS, React, Prisma, and Gemini AI
+Made with ❤️ by the Task-Gen-01 Team
