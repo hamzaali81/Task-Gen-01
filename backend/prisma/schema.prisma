@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -67,7 +67,7 @@ model BudgetItem {
   id          String   @id @default(uuid())
   eventId     String
   category    String   // Food, Venue, Entertainment, etc.
-  description String   @db.Text
+  description String
   amount      Float
   currency    String
   createdAt   DateTime @default(now())
@@ -81,11 +81,11 @@ model BudgetItem {
 model BudgetProposal {
   id              String   @id @default(uuid())
   eventId         String
-  userMessage     String   @db.Text
-  aiResponse      String   @db.Text
-  proposedItems   String   @db.Text // JSON array of budget items
+  userMessage     String
+  aiResponse      String
+  proposedItems   String   // JSON array of budget items
   status          String   @default("pending") // pending, approved, rejected
-  rejectionReason String?  @db.Text
+  rejectionReason String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
