@@ -1,0 +1,95 @@
+// Prisma Schema for Event Budgeting Platform
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  firstName String?
+  lastName  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaces WorkspaceUser[]
+
+  @@map("users")
+}
+
+model Workspace {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users  WorkspaceUser[]
+  events Event[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceUser {
+  id          String @id @default(uuid())
+  userId      String
+  workspaceId String
+  role        String @default("member") // member, admin
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@map("workspace_users")
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  title       String
+  date        DateTime
+  currency    String   // USD, EUR, GBP, etc.
+  workspaceId String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace     Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  budgetItems   BudgetItem[]
+  proposals     BudgetProposal[]
+
+  @@map("events")
+}
+
+model BudgetItem {
+  id          String   @id @default(uuid())
+  eventId     String
+  category    String   // Food, Venue, Entertainment, etc.
+  description String   @db.Text
+  amount      Float
+  currency    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("budget_items")
+}
+
+model BudgetProposal {
+  id              String   @id @default(uuid())
+  eventId         String
+  userMessage     String   @db.Text
+  aiResponse      String   @db.Text
+  proposedItems   String   @db.Text // JSON array of budget items
+  status          String   @default("pending") // pending, approved, rejected
+  rejectionReason String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("budget_proposals")
+}

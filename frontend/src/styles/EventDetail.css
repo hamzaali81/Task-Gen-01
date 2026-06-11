@@ -1,0 +1,139 @@
+.event-detail-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.event-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  gap: 2rem;
+}
+
+.btn-back {
+  padding: 0.5rem 1rem;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+}
+
+.btn-back:hover {
+  background: #f8f9fa;
+}
+
+.event-info {
+  flex: 1;
+}
+
+.event-info h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 2rem;
+  color: #1a1a1a;
+}
+
+.event-meta {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  color: #666;
+}
+
+.budget-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.summary-card {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.summary-card h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.summary-amount {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #28a745;
+  margin: 0;
+}
+
+.category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.category-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.category-name {
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.category-amount {
+  font-weight: 600;
+  color: #007bff;
+}
+
+.event-detail-content {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+
+.content-with-chat {
+  grid-column: 1;
+}
+
+.content-full {
+  grid-column: 1 / -1;
+}
+
+.chat-panel {
+  grid-column: 1;
+}
+
+@media (min-width: 1024px) {
+  .event-detail-content {
+    grid-template-columns: 1fr 400px;
+  }
+  
+  .content-with-chat {
+    grid-column: 1;
+  }
+  
+  .chat-panel {
+    grid-column: 2;
+  }
+}
+
+.error {
+  text-align: center;
+  padding: 2rem;
+  color: #dc3545;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #f8d7da;
+}
