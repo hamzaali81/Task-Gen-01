@@ -1,0 +1,29 @@
+meta {
+  name: Update Event
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/events/{{eventId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  x-workspace-id: {{workspaceId}}
+}
+
+body:json {
+  {
+    "title": "Annual Company Gala (Updated)"
+  }
+}
+
+docs {
+  Partially updates an event. Only send the fields you want to change.
+}

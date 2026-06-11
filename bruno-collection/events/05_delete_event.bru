@@ -1,0 +1,22 @@
+meta {
+  name: Delete Event
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/events/{{eventId}}
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  x-workspace-id: {{workspaceId}}
+}
+
+docs {
+  Deletes an event and all its budget items (cascade delete via Prisma).
+}

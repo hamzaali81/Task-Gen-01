@@ -1,0 +1,22 @@
+meta {
+  name: Get Event (with budget summary)
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/events/{{eventId}}
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  x-workspace-id: {{workspaceId}}
+}
+
+docs {
+  Returns a single event with its full budgetSummary (totalSpend + categoryBreakdown).
+}

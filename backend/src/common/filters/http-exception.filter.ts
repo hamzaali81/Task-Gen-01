@@ -9,41 +9,62 @@ import {
 import { Request, Response } from 'express';
 
 /**
- * Global exception filter for consistent error responses
- * Logs errors and provides structured error messages to clients
+ * HttpExceptionFilter — global exception filter for all HTTP exceptions.
+ *
+ * Catches every HttpException (including NestJS built-ins like
+ * NotFoundException, ForbiddenException, BadRequestException, etc.)
+ * and returns a consistent JSON error envelope:
+ *
+ * {
+ *   statusCode: number,
+ *   message: string | string[],
+ *   error: string,
+ *   timestamp: string,
+ *   path: string
+ * }
+ *
+ * This prevents raw NestJS error objects (which may include stack traces)
+ * from leaking to API consumers in production.
  */
-@Catch()
+@Catch(HttpException)
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);
 
-  catch(exception: unknown, host: ArgumentsHost) {
+  catch(exception: HttpException, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    const status =
-      exception instanceof HttpException
-        ? exception.getStatus()
-        : HttpStatus.INTERNAL_SERVER_ERROR;
+    const status = exception.getStatus
+      ? exception.getStatus()
+      : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    const message =
-      exception instanceof HttpException
-        ? exception.getResponse()
-        : 'Internal server error';
+    const exceptionResponse = exception.getResponse();
 
-    // Log error details for debugging
-    this.logger.error(
-      `${request.method} ${request.url}`,
-      exception instanceof Error ? exception.stack : exception,
-    );
+    // NestJS validation pipe returns { message: string[], error: string }
+    // Custom exceptions may return a plain string or an object
+    let message: string | string[];
+    let error: string;
 
-    // Send structured error response
-    response.status(status).json({
+    if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
+      const resp = exceptionResponse as Record<string, unknown>;
+      message = (resp.message as string | string[]) ?? exception.message;
+      error = (resp.error as string) ?? exception.name;
+    } else {
+      message = exception.message;
+      error = exception.name;
+    }
+
+    const body = {
       statusCode: status,
+      message,
+      error,
       timestamp: new Date().toISOString(),
       path: request.url,
-      method: request.method,
-      ...(typeof message === 'object' ? message : { message }),
-    });
+    };
+
+    this.logger.warn(`${request.method} ${request.url} → ${status}: ${JSON.stringify(message)}`);
+
+    response.status(status).json(body);
   }
 }

@@ -16,7 +16,7 @@ export const PROPOSAL_STATUS = {
   REJECTED: 'rejected',
 } as const;
 
-export const GEMINI_MODEL = 'gemini-pro';
+export const GEMINI_MODEL = 'gemini-1.5-flash';
 
 export const SOCKET_EVENTS = {
   JOIN_WORKSPACE: 'joinWorkspace',

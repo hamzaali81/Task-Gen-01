@@ -1,0 +1,22 @@
+meta {
+  name: Delete Budget Item
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{baseUrl}}/events/{{eventId}}/budget-items/{{budgetItemId}}
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  x-workspace-id: {{workspaceId}}
+}
+
+docs {
+  Deletes a single budget item. Set `budgetItemId` variable first.
+}

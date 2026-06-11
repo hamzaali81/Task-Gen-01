@@ -8,8 +8,15 @@ import { BudgetItemsModule } from './budget-items/budget-items.module';
 import { AiChatModule } from './ai-chat/ai-chat.module';
 import { WebsocketsModule } from './websockets/websockets.module';
 import { WorkspaceMiddleware } from './common/middleware/workspace.middleware';
-import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
+/**
+ * AppModule — root module that wires the application together.
+ *
+ * WorkspaceMiddleware is applied to all event-related routes. It is
+ * excluded from the public auth endpoints. The middleware decodes the JWT
+ * itself (JwtModule is available via AuthModule) and validates workspace
+ * ownership before the request reaches any controller.
+ */
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -17,7 +24,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
       envFilePath: '.env',
     }),
     PrismaModule,
-    AuthModule,
+    AuthModule,   // Exports JwtModule — makes JwtService available to WorkspaceMiddleware
     UsersModule,
     EventsModule,
     BudgetItemsModule,
@@ -32,7 +39,6 @@ export class AppModule implements NestModule {
       .exclude(
         { path: 'auth/register', method: RequestMethod.POST },
         { path: 'auth/login', method: RequestMethod.POST },
-        { path: 'users/workspaces', method: RequestMethod.GET },
       )
       .forRoutes(
         { path: 'events*', method: RequestMethod.ALL },

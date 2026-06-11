@@ -21,21 +21,25 @@ const EventDetail = () => {
     enabled: !!eventId,
   });
 
-  // Listen for real-time budget updates
+  // Listen for real-time budget updates via Socket.IO.
+  // We read socket.current inside the effect (not at the top level) because
+  // useSocket returns a ref whose .current is null on the first render.
   useEffect(() => {
-    if (!socket || !eventId) return;
+    const s = socket.current;
+    if (!s || !eventId) return;
 
     const handleBudgetUpdated = (data: { eventId: string }) => {
       if (data.eventId === eventId) {
-        // Refetch event data when budget is updated
+        // Invalidate TanStack Query cache so the budget table refreshes
         queryClient.invalidateQueries({ queryKey: ['event', eventId] });
+        queryClient.invalidateQueries({ queryKey: ['budgetItems', eventId] });
       }
     };
 
-    socket.on('budgetUpdated', handleBudgetUpdated);
+    s.on('budgetUpdated', handleBudgetUpdated);
 
     return () => {
-      socket.off('budgetUpdated', handleBudgetUpdated);
+      s.off('budgetUpdated', handleBudgetUpdated);
     };
   }, [socket, eventId, queryClient]);
 

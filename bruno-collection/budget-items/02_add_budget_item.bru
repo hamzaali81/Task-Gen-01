@@ -1,0 +1,32 @@
+meta {
+  name: Add Budget Item
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/events/{{eventId}}/budget-items
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  x-workspace-id: {{workspaceId}}
+}
+
+body:json {
+  {
+    "category": "Venue",
+    "description": "Grand ballroom rental for 200 guests, includes setup and teardown",
+    "amount": 5000.00,
+    "currency": "USD"
+  }
+}
+
+docs {
+  Adds a manual budget item to the event.
+}

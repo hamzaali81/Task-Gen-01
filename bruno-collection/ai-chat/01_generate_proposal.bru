@@ -1,0 +1,42 @@
+meta {
+  name: Generate AI Budget Proposal
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/events/{{eventId}}/ai-chat
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  x-workspace-id: {{workspaceId}}
+}
+
+body:json {
+  {
+    "message": "Create a budget for a corporate holiday party for 150 guests with dinner, live band, and decorations"
+  }
+}
+
+script:post-response {
+  if (res.status === 200 || res.status === 201) {
+    bru.setVar("proposalId", res.body.proposalId);
+  }
+}
+
+docs {
+  Sends a natural language message to the Gemini AI assistant.
+  Returns a pending budget proposal for user review.
+  Sets `proposalId` for the approve/reject requests.
+
+  Business rules enforced:
+  - Only one pending proposal per event (400 if another exists)
+  - All items must match the event currency (400 if mismatch)
+  - AI never writes to the database directly
+}

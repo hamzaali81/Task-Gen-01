@@ -1,0 +1,30 @@
+meta {
+  name: Update Budget Item
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/events/{{eventId}}/budget-items/{{budgetItemId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  x-workspace-id: {{workspaceId}}
+}
+
+body:json {
+  {
+    "amount": 6000.00,
+    "description": "Grand ballroom rental (upgraded package)"
+  }
+}
+
+docs {
+  Partially updates a budget item. Set `budgetItemId` variable to the item's id.
+}

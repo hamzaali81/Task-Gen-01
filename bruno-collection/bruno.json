@@ -1,0 +1,11 @@
+{
+  "version": "1",
+  "name": "Event Budgeting API",
+  "vars": {
+    "baseUrl": "http://localhost:3000",
+    "token": "",
+    "workspaceId": "",
+    "eventId": "",
+    "proposalId": ""
+  }
+}

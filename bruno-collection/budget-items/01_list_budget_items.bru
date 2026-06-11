@@ -1,0 +1,22 @@
+meta {
+  name: List Budget Items
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/events/{{eventId}}/budget-items
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  x-workspace-id: {{workspaceId}}
+}
+
+docs {
+  Returns all budget items for the event, ordered by creation date (newest first).
+}

@@ -6,8 +6,14 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
-import { LocalStrategy } from './strategies/local.strategy';
 
+/**
+ * AuthModule
+ *
+ * Exports both AuthService and JwtModule so that other modules
+ * (e.g. WebsocketsModule, WorkspaceMiddleware) can inject JwtService
+ * without re-registering it.
+ */
 @Module({
   imports: [
     UsersModule,
@@ -24,7 +30,7 @@ import { LocalStrategy } from './strategies/local.strategy';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, LocalStrategy],
-  exports: [AuthService],
+  providers: [AuthService, JwtStrategy],
+  exports: [AuthService, JwtModule], // Export JwtModule so JwtService is available elsewhere
 })
 export class AuthModule {}

@@ -14,9 +14,10 @@ import {
   PROPOSAL_STATUS,
   ERROR_MESSAGES,
 } from '../common/constants';
+import { GeminiPromptBuilder } from './helpers/gemini-prompt.builder';
 
 /**
- * Budget proposal item structure
+ * Budget proposal item structure returned by Gemini
  */
 interface BudgetProposalItem {
   category: string;
@@ -26,22 +27,13 @@ interface BudgetProposalItem {
 }
 
 /**
- * Gemini AI response structure
- */
-interface GeminiResponse {
-  items: BudgetProposalItem[];
-  totalAmount: number;
-}
-
-/**
- * Service responsible for AI-powered budget proposal generation
- * Uses Google's Gemini API with proper error handling and validation
- * 
+ * Service responsible for AI-powered budget proposal generation.
+ *
  * Key responsibilities:
- * - Generate budget proposals via Gemini
- * - Validate currency consistency
- * - Manage proposal approval workflow
- * - Emit real-time updates via WebSocket
+ * - Generate budget proposals via Google Gemini API
+ * - Validate currency consistency (all items must match event currency)
+ * - Manage proposal approval/rejection workflow (never writes directly to DB)
+ * - Emit real-time updates via WebSocket on approval
  */
 @Injectable()
 export class AiChatService {
@@ -61,18 +53,17 @@ export class AiChatService {
       throw new Error(ERROR_MESSAGES.GEMINI_KEY_MISSING);
     }
     this.genAI = new GoogleGenerativeAI(apiKey);
-    this.logger.log('AI Chat Service initialized');
+    this.logger.log('AiChatService initialized');
   }
 
   /**
-   * Generate a budget proposal using Gemini AI
-   * 
-   * @param workspaceId - Workspace identifier for authorization
-   * @param eventId - Event to generate proposal for
-   * @param userMessage - Natural language request from user
-   * @returns Structured proposal with items and metadata
-   * @throws BusinessException if pending proposal exists
-   * @throws AIServiceException if Gemini API fails
+   * Generate a budget proposal using Gemini AI.
+   *
+   * The AI never writes to the database directly. The proposal is saved
+   * as "pending" and returned to the frontend for user review.
+   *
+   * @throws BusinessException if a pending proposal already exists for this event
+   * @throws AIServiceException if Gemini API fails or returns invalid JSON
    */
   async generateBudgetProposal(
     workspaceId: string,
@@ -81,39 +72,39 @@ export class AiChatService {
   ) {
     this.logger.log(`Generating proposal for event ${eventId}`);
 
-    // Verify event exists and belongs to workspace
+    // Verify event exists and belongs to this workspace (throws 404 if not)
     const event = await this.eventsService.findOne(workspaceId, eventId);
 
-    // Check for existing pending proposals - business rule enforcement
+    // Enforce business rule: only one pending proposal per event at a time
     await this.checkPendingProposal(eventId);
 
     try {
-      // Generate proposal via Gemini
+      // Validate prompt inputs before calling Gemini
+      GeminiPromptBuilder.validateInputs(event.title, event.currency, userMessage);
+
+      // Call Gemini and get structured budget items
       const proposedItems = await this.callGeminiAPI(event, userMessage);
 
-      // Validate currency consistency - critical business rule
+      // Critical: every item must use the event's currency
       this.validateCurrency(proposedItems, event.currency);
 
-      // Validate item structure
+      // Validate item structure completeness
       this.validateProposalStructure(proposedItems);
 
-      // Save as pending proposal
-      const proposal = await this.savePendingProposal(
-        eventId,
-        userMessage,
-        proposedItems,
-      );
+      // Persist as pending proposal (NOT budget items — user must approve first)
+      const proposal = await this.savePendingProposal(eventId, userMessage, proposedItems);
 
-      this.logger.log(`Proposal ${proposal.id} created successfully`);
+      this.logger.log(`Proposal ${proposal.id} created successfully for event ${eventId}`);
 
       return this.formatProposalResponse(proposal, proposedItems, event.currency);
     } catch (error) {
       this.logger.error(`Failed to generate proposal: ${error.message}`, error.stack);
-      
+
+      // Re-throw domain exceptions as-is
       if (error instanceof BusinessException) {
         throw error;
       }
-      
+
       throw new AIServiceException(
         `Failed to generate budget proposal: ${error.message}`,
         error,
@@ -122,124 +113,17 @@ export class AiChatService {
   }
 
   /**
-   * Check if a pending proposal exists for the event
-   * @throws BusinessException if pending proposal exists
+   * Approve a pending proposal: write budget items to DB and notify clients.
    */
-  private async checkPendingProposal(eventId: string): Promise<void> {
-    const existingProposal = await this.prisma.budgetProposal.findFirst({
-      where: {
-        eventId,
-        status: PROPOSAL_STATUS.PENDING,
-      },
-    });
-
-    if (existingProposal) {
-      throw new BusinessException(ERROR_MESSAGES.PENDING_PROPOSAL_EXISTS);
-    }
-  }
-    // Create prompt for Gemini
-    const prompt = `You are a professional event budget assistant. 
-    
-Event Details:
-- Title: ${event.title}
-- Date: ${event.date}
-- Currency: ${event.currency}
-
-User Request: ${userMessage}
-
-Please generate a detailed budget proposal for this event. Return your response as a valid JSON array with this exact format:
-[
-  {
-    "category": "Category Name",
-    "description": "Detailed description",
-    "amount": 1000.00,
-    "currency": "${event.currency}"
-  }
-]
-
-Important rules:
-1. ALL items MUST use currency: "${event.currency}"
-2. Return ONLY the JSON array, no other text
-3. Include realistic categories like: Venue, Catering, Entertainment, Decorations, Staff, Marketing, Contingency
-4. Provide detailed descriptions for each item
-5. Use realistic amounts based on the event type and date`;
-
-    try {
-      // Call Gemini API
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-pro' });
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
-
-      // Parse AI response
-      let proposedItems: BudgetProposalItem[];
-      try {
-        // Extract JSON from response (handle markdown code blocks)
-        const jsonMatch = text.match(/\[[\s\S]*\]/);
-        if (!jsonMatch) {
-          throw new Error('No JSON array found in AI response');
-        }
-        proposedItems = JSON.parse(jsonMatch[0]);
-      } catch (parseError) {
-        throw new BadRequestException(
-          'AI response was not in the expected format. Please try again.',
-        );
-      }
-
-      // Validate currency matches event currency
-      const invalidCurrency = proposedItems.find((item) => item.currency !== event.currency);
-      if (invalidCurrency) {
-        throw new BadRequestException(
-          `AI proposal contains invalid currency. All items must use ${event.currency}.`,
-        );
-      }
-
-      // Validate structure
-      for (const item of proposedItems) {
-        if (!item.category || !item.description || typeof item.amount !== 'number' || !item.currency) {
-          throw new BadRequestException('AI proposal has invalid item structure');
-        }
-      }
-
-      // Save as pending proposal
-      const proposal = await this.prisma.budgetProposal.create({
-        data: {
-          eventId,
-          userMessage,
-          aiResponse: text,
-          proposedItems: JSON.stringify(proposedItems),
-          status: 'pending',
-        },
-      });
-
-      return {
-        proposalId: proposal.id,
-        status: 'pending',
-        items: proposedItems,
-        totalAmount: proposedItems.reduce((sum, item) => sum + item.amount, 0),
-        currency: event.currency,
-        message: 'Proposal generated successfully. Please review and approve or reject.',
-      };
-    } catch (error) {
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new BadRequestException(
-        `Failed to generate budget proposal: ${error.message}`,
-      );
-    }
-  }
-
   async approveProposal(workspaceId: string, eventId: string, proposalId: string) {
-    // Verify event exists
+    // Verify event belongs to this workspace
     const event = await this.eventsService.findOne(workspaceId, eventId);
 
-    // Get proposal
     const proposal = await this.prisma.budgetProposal.findFirst({
       where: {
         id: proposalId,
         eventId,
-        status: 'pending',
+        status: PROPOSAL_STATUS.PENDING,
       },
     });
 
@@ -247,20 +131,22 @@ Important rules:
       throw new NotFoundException('Pending proposal not found');
     }
 
-    // Parse proposed items
+    // Parse the JSON-serialised items from the proposal record
     const proposedItems: BudgetProposalItem[] = JSON.parse(proposal.proposedItems);
 
-    // Create budget items in database
+    // Write budget items to the database (only happens on explicit approval)
     await this.budgetItemsService.createMany(eventId, proposedItems);
 
-    // Update proposal status
+    // Mark proposal as approved
     await this.prisma.budgetProposal.update({
       where: { id: proposalId },
-      data: { status: 'approved' },
+      data: { status: PROPOSAL_STATUS.APPROVED },
     });
 
-    // Emit WebSocket event for real-time update
-    this.websocketsGateway.emitBudgetUpdated(workspaceId, eventId);
+    // Notify all clients in this workspace via WebSocket so they can refresh
+    this.websocketsGateway.emitBudgetUpdated(event.workspaceId, eventId);
+
+    this.logger.log(`Proposal ${proposalId} approved — ${proposedItems.length} items created`);
 
     return {
       message: 'Proposal approved and budget items created successfully',
@@ -268,16 +154,23 @@ Important rules:
     };
   }
 
-  async rejectProposal(workspaceId: string, eventId: string, proposalId: string, reason?: string) {
-    // Verify event exists
+  /**
+   * Reject a pending proposal. No budget items are written.
+   */
+  async rejectProposal(
+    workspaceId: string,
+    eventId: string,
+    proposalId: string,
+    reason?: string,
+  ) {
+    // Verify event belongs to this workspace
     await this.eventsService.findOne(workspaceId, eventId);
 
-    // Get proposal
     const proposal = await this.prisma.budgetProposal.findFirst({
       where: {
         id: proposalId,
         eventId,
-        status: 'pending',
+        status: PROPOSAL_STATUS.PENDING,
       },
     });
 
@@ -285,17 +178,168 @@ Important rules:
       throw new NotFoundException('Pending proposal not found');
     }
 
-    // Update proposal status
     await this.prisma.budgetProposal.update({
       where: { id: proposalId },
       data: {
-        status: 'rejected',
+        status: PROPOSAL_STATUS.REJECTED,
         rejectionReason: reason,
       },
     });
 
+    this.logger.log(`Proposal ${proposalId} rejected`);
+
+    return { message: 'Proposal rejected successfully' };
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Private helpers
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Enforce the "one pending proposal at a time" business rule.
+   * @throws BusinessException if a pending proposal already exists
+   */
+  private async checkPendingProposal(eventId: string): Promise<void> {
+    const existing = await this.prisma.budgetProposal.findFirst({
+      where: {
+        eventId,
+        status: PROPOSAL_STATUS.PENDING,
+      },
+    });
+
+    if (existing) {
+      throw new BusinessException(ERROR_MESSAGES.PENDING_PROPOSAL_EXISTS);
+    }
+  }
+
+  /**
+   * Call the Gemini API and parse the returned JSON array of budget items.
+   *
+   * Uses GeminiPromptBuilder to build a structured prompt that instructs
+   * Gemini to return ONLY a JSON array — no markdown, no prose.
+   * We strip any residual code-fence markers before parsing.
+   *
+   * @throws AIServiceException if the API fails or the response is not parseable JSON
+   */
+  private async callGeminiAPI(
+    event: { title: string; date: Date | string; currency: string },
+    userMessage: string,
+  ): Promise<BudgetProposalItem[]> {
+    const prompt = GeminiPromptBuilder.buildBudgetProposalPrompt(
+      event.title,
+      event.date,
+      event.currency,
+      userMessage,
+    );
+
+    this.logger.debug(`Calling Gemini model: ${GEMINI_MODEL}`);
+
+    const model = this.genAI.getGenerativeModel({ model: GEMINI_MODEL });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const rawText = response.text();
+
+    // Strip optional markdown code fences (```json ... ``` or ``` ... ```)
+    const cleaned = rawText
+      .replace(/```json\s*/gi, '')
+      .replace(/```\s*/g, '')
+      .trim();
+
+    // Extract the JSON array — Gemini sometimes adds leading/trailing prose
+    const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      this.logger.error(`Gemini returned non-JSON response: ${rawText.substring(0, 200)}`);
+      throw new AIServiceException(ERROR_MESSAGES.INVALID_JSON_RESPONSE);
+    }
+
+    try {
+      const items: BudgetProposalItem[] = JSON.parse(jsonMatch[0]);
+      return items;
+    } catch (parseError) {
+      this.logger.error(`JSON parse error: ${parseError.message}`);
+      throw new AIServiceException(ERROR_MESSAGES.INVALID_JSON_RESPONSE);
+    }
+  }
+
+  /**
+   * Validate that every proposed item uses the event's currency.
+   * Client requirement: if Gemini returns a different currency, reject the entire proposal.
+   *
+   * @throws BusinessException listing any offending currencies found
+   */
+  private validateCurrency(items: BudgetProposalItem[], eventCurrency: string): void {
+    const mismatched = items.filter(
+      (item) => item.currency?.toUpperCase() !== eventCurrency.toUpperCase(),
+    );
+
+    if (mismatched.length > 0) {
+      const offenders = [...new Set(mismatched.map((i) => i.currency))].join(', ');
+      throw new BusinessException(
+        `${ERROR_MESSAGES.INVALID_CURRENCY}. Event requires ${eventCurrency} but AI returned: ${offenders}`,
+      );
+    }
+  }
+
+  /**
+   * Validate that each item has all required fields with correct types.
+   * @throws BusinessException on structural violations
+   */
+  private validateProposalStructure(items: BudgetProposalItem[]): void {
+    if (!Array.isArray(items) || items.length === 0) {
+      throw new BusinessException('AI returned an empty proposal');
+    }
+
+    for (const [idx, item] of items.entries()) {
+      if (!item.category || typeof item.category !== 'string') {
+        throw new BusinessException(`Item ${idx + 1} is missing a valid category`);
+      }
+      if (!item.description || typeof item.description !== 'string') {
+        throw new BusinessException(`Item ${idx + 1} is missing a valid description`);
+      }
+      if (typeof item.amount !== 'number' || item.amount <= 0) {
+        throw new BusinessException(`Item ${idx + 1} has an invalid amount`);
+      }
+      if (!item.currency || typeof item.currency !== 'string') {
+        throw new BusinessException(`Item ${idx + 1} is missing a currency`);
+      }
+    }
+  }
+
+  /**
+   * Persist the proposal as "pending" in the database.
+   * Budget items are NOT written here — only on approval.
+   */
+  private async savePendingProposal(
+    eventId: string,
+    userMessage: string,
+    proposedItems: BudgetProposalItem[],
+  ) {
+    return this.prisma.budgetProposal.create({
+      data: {
+        eventId,
+        userMessage,
+        aiResponse: JSON.stringify(proposedItems), // store raw AI items as canonical record
+        proposedItems: JSON.stringify(proposedItems),
+        status: PROPOSAL_STATUS.PENDING,
+      },
+    });
+  }
+
+  /**
+   * Shape the API response returned to the frontend for display in the proposal card.
+   */
+  private formatProposalResponse(
+    proposal: { id: string; status: string },
+    items: BudgetProposalItem[],
+    currency: string,
+  ) {
     return {
-      message: 'Proposal rejected successfully',
+      proposalId: proposal.id,
+      status: proposal.status,
+      items,
+      totalAmount: items.reduce((sum, item) => sum + item.amount, 0),
+      currency,
+      message: 'Proposal generated. Review and approve or reject.',
     };
   }
 }
