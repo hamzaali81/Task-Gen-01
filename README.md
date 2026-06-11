@@ -1,4 +1,5 @@
-# Task-Gen-01 - Event Budgeting Platform
+Loom: https://www.loom.com/share/0498cddaca7e4207b0dc03b985c70f78
+# Event Budgeting Platform
 
 An AI-powered event budgeting platform that helps users create and manage budget proposals for events using Google Gemini AI.
 
