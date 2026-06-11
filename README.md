@@ -1,3 +1,4 @@
+Loom: https://www.loom.com/share/0498cddaca7e4207b0dc03b985c70f78
 # Event Budgeting Platform
 
 A multi-tenant event budgeting platform with AI-powered budget proposal generation using Google's Gemini API. Built with NestJS, Prisma, MySQL, React, and TypeScript.
